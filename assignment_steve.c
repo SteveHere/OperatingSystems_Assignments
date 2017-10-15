@@ -9,7 +9,7 @@ struct message{
 	char message[128];
 };
 
-int parentPart1(int parentToChild1, FILE *inputFile);
+int parentPart1(int parentToChild1, FILE *inputFile, FILE *parentLogFile);
 int parentPart2(int child3ToParent, FILE *parentLogFile);
 int child1(int parentToChild1, int child1ToChild2, FILE *child1LogFile);
 int child2(int child1ToChild2, FILE *child2LogFile);
@@ -68,6 +68,7 @@ int main(int argc, char **argv){
 			}
 			else if(i == 0){
 				/* Child 1 enters here */
+				/* Create pipe between Child 1 and Child 2 */ 
 				int child1ToChild2[2];
 				if(pipe(child1ToChild2) == -1){
 					perror("Pipe call error for I/O Pipe between Child 1 and Child 2. Exiting program.\n");
@@ -82,25 +83,31 @@ int main(int argc, char **argv){
 				}
 				else if(j == 0){
 					/* Child 2 enters here */
-					close(child1ToChild2[1]);
-					close(parentToChild1[0]);
-					close(parentToChild1[1]);
+					close(child1ToChild2[1]); /* Close write part, Child2 only needs read */
+					close(parentToChild1[0]); /* Close read part, Child2 doesn't need this */
+					close(parentToChild1[1]); /* Close write part, Child2 doesn't need this */
 					
+					/* Child 2 is given read part of child1ToChild2 pipe, and child2LogFile */
 					child2(child1ToChild2[0], child2LogFile);
-					close(child1ToChild2[0]);
+					close(child1ToChild2[0]); /* Close read part, don't need it now */
 				}
 				else{
 					/* Child 1 enters here */
-					close(child1ToChild2[0]);
-					close(parentToChild1[1]);
+					close(child1ToChild2[0]); /* Close read part, Child 1 only needs write */
+					close(parentToChild1[1]); /* Close write part, Child 1 only needs read */
 					
+					/* 
+					Child 2 is given read part of parentToChild1, write part of 
+					child1ToChild2 pipe, and child2LogFile 
+					*/
 					child1(parentToChild1[0], child1ToChild2[1], child1LogFile);
-					close(parentToChild1[0]);
-					close(child1ToChild2[1]);
+					close(parentToChild1[0]); /* Close read part, don't need it now */
+					close(child1ToChild2[1]); /* Close write part, don't need it now */
 				}
 			}
 			else{
 				/* Parent enters here */
+				/* Create pipe between Child 3 and Parent */
 				int child3ToParent[2];
 				if(pipe(child3ToParent) == -1){
 					perror("Pipe call error for I/O Pipe between Parent and Child 3. Exiting program.\n");
@@ -116,26 +123,30 @@ int main(int argc, char **argv){
 				else if(k == 0){
 					/* Child 3 enters here */
 					
-					close(parentToChild1[0]);
-					close(parentToChild1[1]);
-					close(child3ToParent[0]);
+					close(parentToChild1[0]); /* Close read part, Child 3 only needs write */
+					close(parentToChild1[1]); /* Close write part, Child 3 only needs write */
+					close(child3ToParent[0]); /* Close read part, Child 3 only needs write */
 					
+					/* Child 3 is given write part of child3ToParent, and child3LogFile */
 					child3(child3ToParent[1], child3LogFile);
+					close(child3ToParent[1]); /* Close write part, don't need it now */
 				}
 				else{
 					/* Parent enters here */
 					
-					close(parentToChild1[0]);
-					close(child3ToParent[1]);
+					close(parentToChild1[0]); /* Close read part, Parent only needs write */
+					close(child3ToParent[1]); /* Close write part, Parent only needs read */
 					
-					parentPart1(parentToChild1[1], inputFile);
-					close(parentToChild1[1]);
+					/* Parent is first given write part of parentToChild1, inputFile, and parentLogFile */
+					parentPart1(parentToChild1[1], inputFile, parentLogFile); 
+					close(parentToChild1[1]); /* Close write part, don't need it now */
 					
 					/* Wait for Child 3 to finish */
 					wait(&k);
 					
-					parentPart2(child3ToParent[0], parentLogFile);
-					close(child3ToParent[0]);
+					/* Parent is then given read part of child3ToParent, and parentLogFile */
+					parentPart2(child3ToParent[0], parentLogFile); 
+					close(child3ToParent[0]); /* Close read part, don't need it now */
 				}
 			}
 			/* Main program ends here -------------------------------------------*/
@@ -150,7 +161,7 @@ int main(int argc, char **argv){
 	return 0;
 }
 
-int parentPart1(int parentToChild1, FILE *inputFile){
+int parentPart1(int parentToChild1, FILE *inputFile, FILE *parentLogFile){
 	printf("Parent part 1\n");
 	sleep(1);
 	return 0;
