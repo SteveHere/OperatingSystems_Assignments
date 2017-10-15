@@ -32,19 +32,19 @@ int main(int argc, char **argv){
 			exit(1);
 		}
 		else if((parentLogFile = fopen(argv[2], "w")) == NULL){
-			printf("Cannot write to %s. Exiting program.", argv[2]);
+			printf("Cannot write to %s for Parent. Exiting program.", argv[2]);
 			exit(1);
 		}
 		else if((child1LogFile = fopen(argv[3], "w")) == NULL){
-			printf("Cannot write to %s. Exiting program.", argv[3]);
+			printf("Cannot write to %s for Child 1. Exiting program.", argv[3]);
 			exit(1);
 		}
 		else if((child2LogFile = fopen(argv[4], "w")) == NULL){
-			printf("Cannot write to %s. Exiting program.", argv[4]);
+			printf("Cannot write to %s for Child 2. Exiting program.", argv[4]);
 			exit(1);
 		}
 		else if((child3LogFile = fopen(argv[5], "w")) == NULL){
-			printf("Cannot write to %s. Exiting program.", argv[5]);
+			printf("Cannot write to %s for Child 3. Exiting program.", argv[5]);
 			exit(1);
 		}
 		/* After successful chain of opening needed files, create the pipes */
