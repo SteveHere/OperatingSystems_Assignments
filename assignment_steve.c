@@ -163,7 +163,7 @@ int main(int argc, char **argv){
 
 int parentPart1(int parentToChild1, FILE *inputFile, FILE *parentLogFile){
 	printf("Parent part 1\n");
-	write(parentToChild1, message, 128);
+	write(parentToChild1, message, strlen(message)+1);
 	sleep(1);
 	return 0;
 }
@@ -178,7 +178,7 @@ int parentPart2(int child3ToParent, FILE *parentLogFile){
 int child1(int parentToChild1, int child1ToChild2, FILE *child1LogFile){
 	printf("Child 1\n");
 	read(parentToChild1, message, 128);
-	write(child1ToChild2, message, 128);
+	write(child1ToChild2, message, strlen(message)+1);
 	sleep(1);
 	return 0;
 }
@@ -192,7 +192,7 @@ int child2(int child1ToChild2, FILE *child2LogFile){
 
 int child3(int child3ToParent, FILE *child3LogFile){
 	printf("Child 3\n");
-	write(child3ToParent, message, 128);
+	write(child3ToParent, message, strlen(message)+1);
 	sleep(1);
 	return 0;
 }
