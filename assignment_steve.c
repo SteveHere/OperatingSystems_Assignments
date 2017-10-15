@@ -163,30 +163,36 @@ int main(int argc, char **argv){
 
 int parentPart1(int parentToChild1, FILE *inputFile, FILE *parentLogFile){
 	printf("Parent part 1\n");
+	write(parentToChild1, message, 128);
 	sleep(1);
 	return 0;
 }
 
 int parentPart2(int child3ToParent, FILE *parentLogFile){
 	printf("Parent part 2\n");
+	read(child3ToParent, message, 128);
 	sleep(1);
 	return 0;
 }
 
 int child1(int parentToChild1, int child1ToChild2, FILE *child1LogFile){
 	printf("Child 1\n");
+	read(parentToChild1, message, 128);
+	write(child1ToChild2, message, 128);
 	sleep(1);
 	return 0;
 }
 
 int child2(int child1ToChild2, FILE *child2LogFile){
 	printf("Child 2\n");
+	read(child1ToChild2, message, 128);
 	sleep(1);
 	return 0;
 }
 
 int child3(int child3ToParent, FILE *child3LogFile){
 	printf("Child 3\n");
+	write(child3ToParent, message, 128);
 	sleep(1);
 	return 0;
 }
