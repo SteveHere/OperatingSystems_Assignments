@@ -9,11 +9,11 @@ typedef struct message{
 	char message[128];
 }
 
-int parentPart1();
-int parentPart2();
-int child1();
-int child2();
-int child3();
+int parentPart1(int parentToChild1[2]);
+int parentPart2(int child3ToParent[2]);
+int child1(int parentToChild1[2], int child1ToChild2[2]);
+int child2(int child1ToChild2[2]);
+int child3(int child3ToParent[2]);
 
 int main(int argc, char **argv){
 	/*
