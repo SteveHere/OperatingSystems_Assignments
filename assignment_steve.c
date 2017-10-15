@@ -91,31 +91,31 @@ int main(int argc, char **argv){
 	return 0;
 }
 
-int parentPart1(int pipes[2]){
+int parentPart1(int parentToChild1[2]){
 	printf("Parent part 1\n");
 	sleep(1);
 	return 0;
 }
 
-int parentPart2(int pipes[2]){
+int parentPart2(int child3ToParent[2]){
 	printf("Parent part 2\n");
 	sleep(1);
 	return 0;
 }
 
-int child1(int pipes[2]){
+int child1(int parentToChild1[2], int child1ToChild2[2]){
 	printf("Child 1\n");
 	sleep(1);
 	return 0;
 }
 
-int child2(int pipes[2]){
+int child2(int child1ToChild2[2]){
 	printf("Child 2\n");
 	sleep(1);
 	return 0;
 }
 
-int child3(int pipes[2]){
+int child3(int child3ToParent[2]){
 	printf("Child 3\n");
 	sleep(1);
 	return 0;
