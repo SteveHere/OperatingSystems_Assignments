@@ -55,7 +55,8 @@ int main(int argc, char **argv){
 			exit(1);
 		}
 		else if(mkfifo(fifoPipeLocation, 0666) == -1){
-			printf("Cannot FIFO pipe between Child 2 and Child 3. Exiting program.\n");
+			printf("Cannot create FIFO pipe file for Child 2 and Child 3. Exiting program.\n");
+			printf("Resolve this by removing \"/tmp/fifoPipe\".\n");
 			exit(1);
 		}
 		/* After successful chain of opening needed files, create the pipes */
@@ -101,6 +102,7 @@ int main(int argc, char **argv){
 					/* Child 2 is given read part of child1ToChild2 pipe, and child2LogFile */
 					child2(child1ToChild2[0], fifoPipeLocation, child2LogFile);
 					close(child1ToChild2[0]); /* Close read part, don't need it now */
+					return 0;
 				}
 				else{
 					/* Child 1 enters here */
@@ -114,6 +116,7 @@ int main(int argc, char **argv){
 					child1(parentToChild1[0], child1ToChild2[1], child1LogFile);
 					close(parentToChild1[0]); /* Close read part, don't need it now */
 					close(child1ToChild2[1]); /* Close write part, don't need it now */
+					return 0;
 				}
 			}
 			else{
@@ -141,6 +144,7 @@ int main(int argc, char **argv){
 					/* Child 3 is given write part of child3ToParent, and child3LogFile */
 					child3(fifoPipeLocation, child3ToParent[1], child3LogFile);
 					close(child3ToParent[1]); /* Close write part, don't need it now */
+					return 0;
 				}
 				else{
 					/* Parent enters here */
@@ -152,8 +156,8 @@ int main(int argc, char **argv){
 					parentPart1(parentToChild1[1], inputFile, parentLogFile); 
 					close(parentToChild1[1]); /* Close write part, don't need it now */
 					
-					/* Wait for Child 3 to finish */
-					wait(&k);
+					/* Wait for all children to finish */
+					wait(NULL);
 					
 					/* Parent is then given read part of child3ToParent, and parentLogFile */
 					parentPart2(child3ToParent[0], parentLogFile); 
@@ -163,11 +167,17 @@ int main(int argc, char **argv){
 			/* Main program ends here -------------------------------------------*/
 		}
 		
+		/* Closing all of the file pointers */
 		fclose(inputFile);
 		fclose(parentLogFile);
 		fclose(child1LogFile);
 		fclose(child2LogFile);
 		fclose(child3LogFile);
+		
+		/* Removing the FIFO pipe file. If it fails, print out an error */
+		if(remove(fifoPipeLocation) != 0){
+			perror("Cannot remove FIFO pipe file. Manually remove this file by deleting \"/tmp//fifoPipe\".");
+		}
 	}
 	return 0;
 }
@@ -280,10 +290,11 @@ int child2(int child1ToChild2, char *fifoPipeLocation, FILE *child2LogFile){
 				fprintf(child2LogFile, "%ld\t%s\t%s\n", time(NULL), line.content, "FORWARD");	
 			}
 		}
+		close(fifoPipe);
 	}
 	/* Execute this if the FIFO pipe encountered an error and returned -1 */
 	else{
-		perror("Cannot open FIFO pipe for Child 3 for reading. Exiting child.\n");
+		perror("Cannot open FIFO pipe for Child 2 for writing. Exiting child.\n");
 		_exit(1);
 	}
 	return 0;
@@ -319,6 +330,7 @@ int child3(char *fifoPipeLocation, int child3ToParent, FILE *child3LogFile){
 				fprintf(child3LogFile, "%ld\t%s\t%s\n", time(NULL), line.content, "FORWARD");	
 			}
 		}
+		close(fifoPipe);
 	}
 	/* Execute this if the FIFO pipe encountered an error and returned -1 */
 	else{
