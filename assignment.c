@@ -2,7 +2,7 @@
 	ITS60503 ( Operating Systems ) -- Assignment 1
 	Students involved:
 	1.	Kwan Juen Wen - 0322448
-	2.	
+	2.	Mohammad Ramzan Ashraf - 0323724
 */
 
 #include <sys/types.h>
