@@ -138,15 +138,15 @@ int main(int argc, char **argv){
 					/* Child 3 enters here */
 					
 					/* mkfifo read */
-					int child2ToChild3;
+					int child2ToChild3_1;
 					char *myfifo = "/tmp/myfifo";
 					mkfifo(myfifo, 0666);
 					char str1[128], str2[128];
 					while(1)
 					{
-						child2ToChild3 = open(myfifo, O_RDONLY);
-						read(child2ToChild3, str1, 128);
-						close(child2ToChild3);
+						child2ToChild3_1 = open(myfifo, O_RDONLY);
+						read(child2ToChild3_1, str1, 128);
+						close(child2ToChild3_1);
 					}
 					
 					close(parentToChild1[0]); /* Close read part, Child 3 only needs write */
