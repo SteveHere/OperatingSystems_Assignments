@@ -1,5 +1,6 @@
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -90,6 +91,19 @@ int main(int argc, char **argv){
 					/* Child 2 is given read part of child1ToChild2 pipe, and child2LogFile */
 					child2(child1ToChild2[0], child2LogFile);
 					close(child1ToChild2[0]); /* Close read part, don't need it now */
+					
+					/* mkfifo for write*/
+					int child2ToChild3;
+					char *myfifo = "/tmp/myfifo";
+					mkfifo(myfifo, 0666);
+					char arr1[128], arr2[128];
+					while(1)
+					{
+						child2ToChild3 = open(myfifo, O_WRONLY);
+						fgets(arr2, 128, stdin);
+						write(child2ToChild3, arr2, strlen(arr2)+1);
+						close(child2ToChild3);
+					}
 				}
 				else{
 					/* Child 1 enters here */
@@ -122,6 +136,18 @@ int main(int argc, char **argv){
 				}
 				else if(k == 0){
 					/* Child 3 enters here */
+					
+					/* mkfifo read */
+					int child2ToChild3;
+					char *myfifo = "/tmp/myfifo";
+					mkfifo(myfifo, 0666);
+					char str1[128], str2[128];
+					while(1)
+					{
+						child2ToChild3 = open(myfifo, O_RDONLY);
+						read(child2ToChild3, str1, 128);
+						close(child2ToChild3);
+					}
 					
 					close(parentToChild1[0]); /* Close read part, Child 3 only needs write */
 					close(parentToChild1[1]); /* Close write part, Child 3 only needs write */
