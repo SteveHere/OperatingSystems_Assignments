@@ -1,3 +1,10 @@
+/*
+	ITS60503 ( Operating Systems ) -- Assignment 1
+	Students involved:
+	1.	Kwan Juen Wen - 0322448
+	2.	
+*/
+
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
@@ -61,17 +68,22 @@ int main(int argc, char **argv){
 		}
 		/* After successful chain of opening needed files, create the pipes */
 		else{
+			/* Array to store pipe between Parent and Child 1 */
 			int parentToChild1[2];
+			
+			/* Variables to store the pids */
+			int i, j, k;
+			
+			/* Main program begins here ---------------------------- */
+			
 			/* Create pipe between Parent and Child 1 */
 			if(pipe(parentToChild1) == -1){
 				perror("Pipe call error for I/O Pipe between Parent and Child 1.\n");
 				exit(1);
 			}
 			
-			/* Main program begins here ----------------------------*/
-			
 			/* Fork to create Child 1 from Parent */
-			int i = fork();
+			i = fork();
 			
 			/* Exit program if fork wasn't a success */
 			if(i == -1){
@@ -82,26 +94,32 @@ int main(int argc, char **argv){
 				/* Child 1 enters here */
 				/* Create pipe between Child 1 and Child 2 */ 
 				int child1ToChild2[2];
+				
+				/* Exit the program if there's a pipe creation error */ 
 				if(pipe(child1ToChild2) == -1){
 					perror("Pipe call error for I/O Pipe between Child 1 and Child 2. Exiting child.\n");
-					_exit(1);
+					exit(1);
 				}
 				
 				/* Fork to create Child 2 from Child 1 */
-				int j = fork();
+				j = fork();
+				
+				/* Exit if there's a problem forking Child 2 from Child 1 */
 				if(j == -1){
 					perror("There was a problem with forking in Child 1. Exiting child.\n");
-					_exit(1);
+					exit(1);
 				}
 				else if(j == 0){
 					/* Child 2 enters here */
-					close(child1ToChild2[1]); /* Close write part, Child2 only needs read */
-					close(parentToChild1[0]); /* Close read part, Child2 doesn't need this */
-					close(parentToChild1[1]); /* Close write part, Child2 doesn't need this */
+					close(child1ToChild2[1]); /* Close write part, Child 2 only needs read */
+					close(parentToChild1[0]); /* Close read part, Child 2 doesn't need this */
+					close(parentToChild1[1]); /* Close write part, Child 2 doesn't need this */
 					
 					/* Child 2 is given read part of child1ToChild2 pipe, and child2LogFile */
 					child2(child1ToChild2[0], fifoPipeLocation, child2LogFile);
 					close(child1ToChild2[0]); /* Close read part, don't need it now */
+					
+					/* Child 2 exits program */
 					return 0;
 				}
 				else{
@@ -116,6 +134,8 @@ int main(int argc, char **argv){
 					child1(parentToChild1[0], child1ToChild2[1], child1LogFile);
 					close(parentToChild1[0]); /* Close read part, don't need it now */
 					close(child1ToChild2[1]); /* Close write part, don't need it now */
+					
+					/* Child 1 exits program */
 					return 0;
 				}
 			}
@@ -123,13 +143,17 @@ int main(int argc, char **argv){
 				/* Parent enters here */
 				/* Create pipe between Child 3 and Parent */
 				int child3ToParent[2];
+				
+				/* Exit the program if there's a pipe creation error */ 
 				if(pipe(child3ToParent) == -1){
 					perror("Pipe call error for I/O Pipe between Parent and Child 3. Exiting program.\n");
 					exit(1);
 				}
 				
 				/* Fork to create Child 3 from Parent */
-				int k = fork();
+				k = fork();
+				
+				/* Exit program if fork wasn't a success */
 				if(k == -1){
 					perror("There was a problem with forking the Parent again. Exiting program.\n");
 					exit(1);
@@ -144,6 +168,8 @@ int main(int argc, char **argv){
 					/* Child 3 is given write part of child3ToParent, and child3LogFile */
 					child3(fifoPipeLocation, child3ToParent[1], child3LogFile);
 					close(child3ToParent[1]); /* Close write part, don't need it now */
+					
+					/* Child 3 exits program */
 					return 0;
 				}
 				else{
@@ -182,56 +208,47 @@ int main(int argc, char **argv){
 	return 0;
 }
 
+/* The first part of the Parent process only handles the sending of messages to Child 1. */
 int parentPart1(int parentToChild1, FILE *inputFile, FILE *parentLogFile){
 	/* While we have not reached the end of the file */
 	while(!feof(inputFile)){
 		struct message line; /* Store each message here */ 
-		int keepIt; /* This determines whether we keep the message or not */
 		
 		/* Read each line from input file */
 		fscanf(inputFile, "%d\t%[^\n]\n", &line.childToSendTo, line.content);
 		
 		/* Since this is the parent, we forward everything to the children */
-		keepIt = 0;
-		
 		/* Write message to Child 1 via pipe */
 		write(parentToChild1, &line.childToSendTo, sizeof(line.childToSendTo));
 		write(parentToChild1, line.content, sizeof(line.content));
 		
 		/* Create log entry in Parent log about keeping it or not*/
-		fprintf(parentLogFile, "%ld\t%s\t%s\n", time(NULL), line.content, (keepIt)? "KEEP" : "FORWARD");	
+		fprintf(parentLogFile, "%ld\t%s\t%s\n", time(NULL), line.content, "FORWARD");	
 	}
 	return 0;
 }
 
+/* The second part of the Parent process only handles the receiving of messages from Child 3. */
 int parentPart2(int child3ToParent, FILE *parentLogFile){
-	struct message line;
-	/* While there are still messages in the pipe between Parent and Child 1*/
+	struct message line; /* Structure to temporarily keep the message */
+	/* While there are still messages in the pipe between Child 3 and Parent...*/
 	while(	(read(child3ToParent, &line.childToSendTo, sizeof(line.childToSendTo)) != 0) 
 		&& (read(child3ToParent, line.content, sizeof(line.content)) != 0)
 	){
-		/* 
-			This determines whether we keep the message or not.
-			In this case, it's if the childToSendTo is not 1, 2, or 3.
-		*/
-		int keepIt = (line.childToSendTo > 3) || (line.childToSendTo < 1); 
-		
-		/* If we keep it... */
-		if(keepIt){
-			/* ...create log entry in Parent log about keeping it */
-			fprintf(parentLogFile, "%ld\t%s\t%s\n", time(NULL), line.content, "KEEP");	
-		}
-		/* Otherwise... */
-		else{
-			/* ...and create log entry in Parent log about forwarding it */
-			fprintf(parentLogFile, "%ld\t%s\t%s\n", time(NULL), line.content, "FORWARD");	
-		}
+		/* ...print message to screen */
+		printf("Parent : %s\n",  line.content);
+		/* Since all of these messages came back to the Parent, the Parent will keep all of them. */
+		fprintf(parentLogFile, "%ld\t%s\t%s\n", time(NULL), line.content, "KEEP");	
 	}
 	return 0;
 }
 
+/* 
+	Child 1 is tasked with sending messages from Parent to Child 2, 
+	while keeping the messages designated for itself.
+*/
 int child1(int parentToChild1, int child1ToChild2, FILE *child1LogFile){
-	struct message line;
+	struct message line; /* Structure to temporarily keep the message */
 	/* While there are still messages in the pipe between Parent and Child 1*/
 	while(	(read(parentToChild1, &line.childToSendTo, sizeof(line.childToSendTo)) != 0) 
 		&& (read(parentToChild1, line.content, sizeof(line.content)) != 0)
@@ -244,7 +261,10 @@ int child1(int parentToChild1, int child1ToChild2, FILE *child1LogFile){
 		
 		/* If we keep it... */
 		if(keepIt){
-			/* ...create log entry in Child 1 log about keeping it */
+			/* ...print message to screen... */
+			printf("Child 1: %s\n",  line.content);
+		
+			/* ...and create log entry in Child 1 log about keeping it */
 			fprintf(child1LogFile, "%ld\t%s\t%s\n", time(NULL), line.content, "KEEP");	
 		}
 		/* Otherwise... */
@@ -260,9 +280,14 @@ int child1(int parentToChild1, int child1ToChild2, FILE *child1LogFile){
 	return 0;
 }
 
+/* 
+	Child 2 is tasked with sending messages from Child 1 to Child 3, 
+	while keeping the messages designated for itself.
+*/
 int child2(int child1ToChild2, char *fifoPipeLocation, FILE *child2LogFile){
+	/* Try to open the FIFO pipe file */
 	int fifoPipe = open(fifoPipeLocation, O_WRONLY);
-	struct message line;
+	struct message line; /* Structure to temporarily keep the message */
 	/* Execute normal behaviour if the open function works as intended */
 	if(fifoPipe != -1){
 		/* While there are still messages in the pipe between Child 1 and Child 2 */
@@ -277,7 +302,10 @@ int child2(int child1ToChild2, char *fifoPipeLocation, FILE *child2LogFile){
 			
 			/* If we keep it... */
 			if(keepIt){
-				/* ...create log entry in Child 2 log about keeping it */
+				/* ...print message to screen... */
+				printf("Child 2: %s\n",  line.content);
+				
+				/* ...and create log entry in Child 2 log about keeping it */
 				fprintf(child2LogFile, "%ld\t%s\t%s\n", time(NULL), line.content, "KEEP");	
 			}
 			/* Otherwise... */
@@ -290,19 +318,25 @@ int child2(int child1ToChild2, char *fifoPipeLocation, FILE *child2LogFile){
 				fprintf(child2LogFile, "%ld\t%s\t%s\n", time(NULL), line.content, "FORWARD");	
 			}
 		}
+		/* Close the FIFO pipe */
 		close(fifoPipe);
 	}
 	/* Execute this if the FIFO pipe encountered an error and returned -1 */
 	else{
 		perror("Cannot open FIFO pipe for Child 2 for writing. Exiting child.\n");
-		_exit(1);
+		exit(1);
 	}
 	return 0;
 }
 
+/* 
+	Child 3 is tasked with sending messages from Child 2 to Parent, 
+	while keeping the messages designated for itself.
+*/
 int child3(char *fifoPipeLocation, int child3ToParent, FILE *child3LogFile){
+	/* Try to open the FIFO pipe file */
 	int fifoPipe = open(fifoPipeLocation, O_RDONLY);
-	struct message line;
+	struct message line; /* Structure to temporarily keep the message */
 	/* Execute normal behaviour if the open function works as intended */
 	if(fifoPipe != -1){
 		/* While there are still messages in the FIFO pipe between Child 2 and Child 3 */
@@ -317,7 +351,10 @@ int child3(char *fifoPipeLocation, int child3ToParent, FILE *child3LogFile){
 			
 			/* If we keep it... */
 			if(keepIt){
-				/* ...create log entry in Child 3 log about keeping it */
+				/* ...print message to screen... */
+				printf("Child 3: %s\n",  line.content);
+				
+				/* ...and create log entry in Child 3 log about keeping it */
 				fprintf(child3LogFile, "%ld\t%s\t%s\n", time(NULL), line.content, "KEEP");	
 			}
 			/* Otherwise... */
@@ -330,12 +367,13 @@ int child3(char *fifoPipeLocation, int child3ToParent, FILE *child3LogFile){
 				fprintf(child3LogFile, "%ld\t%s\t%s\n", time(NULL), line.content, "FORWARD");	
 			}
 		}
+		/* Close the FIFO pipe */
 		close(fifoPipe);
 	}
 	/* Execute this if the FIFO pipe encountered an error and returned -1 */
 	else{
 		perror("Cannot open FIFO pipe for Child 3 for reading. Exiting child.\n");
-		_exit(1);
+		exit(1);
 	}
 	return 0;
 }
