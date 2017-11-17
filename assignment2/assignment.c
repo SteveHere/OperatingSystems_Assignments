@@ -21,11 +21,14 @@ int main(int argc, char **argv){
 	if(argc != 4){
 		printf("Usage: ./assignment <input_file> <output_file> <reader_writer_threads>\n");
 		printf("reader_writer_threads: number of reader threads & number of writer threads\n");
-		printf("Example: 2 = 2 reader threads & 2 writer threads; 4 = 4 reader threads & 4 writer threads\n");
+		printf("Example 1: 2 = 2 reader threads & 2 writer threads\n");
+		printf("Example 2: 4 = 4 reader threads & 4 writer threads\n");
 	}
 	else{
 		/* File pointers to each file */
 		FILE *inputFile, *outputFile;
+		/* Number of reader adn writer threads */
+		int reader_writer_threads = 0;
 	 
 		/* Open the files needed at the beginning */
 		if((inputFile = fopen(argv[1], "r")) == NULL){
@@ -34,9 +37,17 @@ int main(int argc, char **argv){
 		}
 		else if((outputFile = fopen(argv[2], "w")) == NULL){
 			printf("Cannot write to %s. Exiting program.\n", argv[2]);
-			exit(1);
+			fclose(inputFile);
+			exit(2);
 		}
-		/* After successful chain of opening needed files, create the pipes */
+		/* After successful chain of opening needed files, parse the integer for reader_writer_threads */
+		else if(( reader_writer_threads = atoi(argv[3) ) < 1){
+			printf("Parse error encountered with reader_writer_threads.\n");
+			printf("reader_writer_threads must always be more than 0.\n");
+			fclose(inputFile);
+			fclose(outputFile);
+			exit(3);
+		}
 		else{
 			/* TODO: setup */
 			/* Main program starts here -----------------------------------------*/
