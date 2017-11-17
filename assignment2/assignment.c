@@ -11,7 +11,19 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <pthread.h>
 #include <fcntl.h>
+#define BUFFER_SIZE 1024
+struct Mutex
+{
+	pthread_mutex_t mutex1;
+	pthread_mutex_t mutex2;
+};
+
+struct Buffer
+{
+	
+};
 
 int main(int argc, char **argv){
 	/*
@@ -42,6 +54,13 @@ int main(int argc, char **argv){
 			/* Main program starts here -----------------------------------------*/
 			/* TODO: main logic */
 			/* Main program ends here -------------------------------------------*/
+			
+			int numOfThread = argv[3];
+			
+			pthread_t readT[numOfThread];
+			pthread_t writeT[numOfThread];
+			
+			
 		}
 		
 		/* Closing all of the file pointers */
@@ -49,4 +68,16 @@ int main(int argc, char **argv){
 		fclose(outputFile);
 	}
 	return 0;
+}
+
+
+void *read()
+{
+	
+}
+
+
+void *write()
+{
+	
 }
