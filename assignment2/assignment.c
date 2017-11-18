@@ -74,66 +74,76 @@ int main(int argc, char **argv){
 		else{
 			pthread_t readerThread[reader_writer_threads];
 			pthread_t writerThread[reader_writer_threads];
+			int i;
 			
 			buffer.buffersFilled = 0;
-			buffer.endOfFile = 0;
+			buffer.endOfFile = FALSE;
 			buffer.readerPointer = 0;
 			buffer.writerPointer = 0;
 			
 			/* Main program starts here -----------------------------------------*/
 			/* Create the reader and writer threads */
-			int i;
 			for(i = 0; i < reader_writer_threads; i++) {
 				pthread_create(&readerThread[i], NULL, &readerFunction, (void *)(size_t)inputFile);
 				pthread_create(&writerThread[i], NULL, &writerFunction, (void *)(size_t)outputFile);
 			}
 			
-			/* Join all the reader threads, the writer threads are of no concern. */
+			/* Join all the reader threads and the writer threads. */
 			for(i = 0; i < reader_writer_threads; i++) {
 				pthread_join(readerThread[i], NULL);
+				pthread_join(writerThread[i], NULL);
 			}
+			
+			printf("The input file has been fully duplicated.\n");
 			/* Main program ends here -------------------------------------------*/
 		}
 		
 		/* Closing all of the file pointers */
 		close(inputFile);
+		close(outputFile);
 	}
 	return 0;
 }
 
 /* This function is for the reader threads */
 void *readerFunction(void *inputFile){
-	while(TRUE){
+	while(buffer.endOfFile == FALSE){		
 		/* Set the lock */
 		pthread_mutex_lock(&mutexes.readerMutex);
+		
 		/* If all the buffers are filled, then wait until 1 one the buffers has been used. */
 		while(buffer.buffersFilled == 16){
 			pthread_cond_wait(&mutexes.waitForWriters, &mutexes.readerMutex);
 		}
 		
-		/* Read from the file and get back its return value. */
-		buffer.bufferSize[buffer.readerPointer] = read((int)inputFile, buffer.buffer[buffer.readerPointer], BUFFERSIZE);
-		
-		/* 
-		If the return value is 0, that means we hit the end. 
-		Set the endOfFile flag to TRUE, and quit this thread.
-		*/
-		if(buffer.bufferSize[buffer.readerPointer] == 0){
-			/* Lock the writer mutex and set the flag for endOfFile to TRUE */
-			pthread_mutex_lock(&mutexes.writerMutex);
-			buffer.endOfFile = TRUE;
-			pthread_mutex_unlock(&mutexes.writerMutex);
+		if(buffer.endOfFile == FALSE){
+			/* Read from the file and get back its return value. */
+			buffer.bufferSize[buffer.readerPointer] = read((int)(size_t)inputFile, buffer.buffer[buffer.readerPointer], BUFFERSIZE);
 			
-			pthread_cond_signal(&mutexes.waitForReaders);
-			/* Release the lock */
-			pthread_mutex_unlock(&mutexes.readerMutex);
-			pthread_exit(0);
-			break;
+			/* 
+			If the return value is 0, that means we hit the end. 
+			Set the endOfFile flag to TRUE, and quit this thread.
+			*/
+			if(buffer.bufferSize[buffer.readerPointer] == 0){
+				/* Set the flag for endOfFile to TRUE */
+				buffer.endOfFile = TRUE;
+				
+				pthread_cond_signal(&mutexes.waitForReaders); 
+				/* Release the lock */
+				pthread_mutex_unlock(&mutexes.readerMutex); 
+				pthread_exit(0);
+				break;
+			}
+			/* Otherwise, we have 1 more buffer to deal with that isn't the buffer's size. In this case, just set the flag to TRUE. */
+			else if(buffer.bufferSize[buffer.readerPointer] < BUFFERSIZE){
+				/* Set the flag for endOfFile to TRUE */
+				buffer.endOfFile = TRUE;
+			}
+			
+			/* Point to the next buffer to be written to, and increment the number of filled buffers by 1. */
+			buffer.readerPointer = (buffer.readerPointer + 1) % 16;
+			buffer.buffersFilled++;
 		}
-		
-		/* Point to the next buffer to be written to, and increment the number of filled buffers by 1. */
-		buffer.readerPointer = (buffer.readerPointer + 1) % 16;
-		buffer.buffersFilled++;
 		
 		/* Signal to the other mutex */
 		pthread_cond_signal(&mutexes.waitForReaders);
@@ -141,33 +151,29 @@ void *readerFunction(void *inputFile){
 		/* Release the lock */
 		pthread_mutex_unlock(&mutexes.readerMutex);
 	}
+	pthread_exit(0);
 }
 
 /* This function is for the writer threads */
 void *writerFunction(void *outputFile){
-	while(TRUE){
+	while(!(buffer.buffersFilled == 0 && buffer.endOfFile == TRUE)){		
 		/* Set the lock */
 		pthread_mutex_lock(&mutexes.writerMutex);
 		
-		/* If the buffers have all been used up, and we reached the end of the file, quit this thread. */
-		if(buffer.buffersFilled == 0 && buffer.endOfFile == TRUE){
-			printf("The input file has been fully duplicated.\n");
-			close((int)outputFile);
-			pthread_mutex_unlock(&mutexes.writerMutex);
-			pthread_exit(0);
-			break;
-		}
-		
+		/* If there's nothing in the buffer, wait until there's something to write about. */
 		while(buffer.buffersFilled == 0 && buffer.endOfFile == FALSE){
 			pthread_cond_wait(&mutexes.waitForReaders, &mutexes.writerMutex);
 		}
-		
-		/* Write to the output file */
-		write((int)outputFile, buffer.buffer[buffer.writerPointer], buffer.bufferSize[buffer.writerPointer]);
-		
-		/* Point to the next buffer to be read from, and decrement the number of filled buffers by 1. */
-		buffer.writerPointer = (buffer.writerPointer + 1) % 16;
-		buffer.buffersFilled--;
+				
+		/* Another check just to make sure that there's something to write about. */
+		if(buffer.buffersFilled > 0){
+			/* Write to the output file */
+			write((int)(size_t)outputFile, buffer.buffer[buffer.writerPointer], buffer.bufferSize[buffer.writerPointer]);
+			
+			/* Point to the next buffer to be read from, and decrement the number of filled buffers by 1. */
+			buffer.writerPointer = (buffer.writerPointer + 1) % 16;
+			buffer.buffersFilled--;
+		}
 		
 		/* Signal to the other mutex */
 		pthread_cond_signal(&mutexes.waitForWriters);
@@ -175,4 +181,5 @@ void *writerFunction(void *outputFile){
 		/* Release the lock */
 		pthread_mutex_unlock(&mutexes.writerMutex);
 	}
+	pthread_exit(0);
 }
